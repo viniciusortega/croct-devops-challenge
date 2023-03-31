@@ -4,9 +4,9 @@ resource "kubernetes_namespace" "strimzi" {
   }
 }
 
-resource "kubernetes_namespace" "kafka" {
+resource "kubernetes_namespace" "application" {
   metadata {
-    name = "kafka"
+    name = "application"
   }
 }
 
@@ -37,7 +37,7 @@ resource "kubernetes_manifest" "kafka_cluster" {
     kind: Kafka
     metadata:
       name: kafka-default-cluster
-      namespace: kafka
+      namespace: application
     spec:
       kafka:
         replicas: 3
