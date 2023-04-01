@@ -18,6 +18,7 @@ resource "helm_release" "strimzi" {
   repository = "https://strimzi.io/charts/"
   version    = "0.34.0"
   values     = [yamlencode({
+    watchNamespaces = ["application"]
     resources = {
     requests = {
       memory = "512Mi"

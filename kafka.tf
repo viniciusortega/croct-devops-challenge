@@ -7,7 +7,7 @@ resource "kubernetes_manifest" "kafka_cluster" {
       namespace: application
     spec:
       kafka:
-        replicas: 3
+        replicas: 1
         listeners:
           - name: plain
             port: 9092
@@ -18,25 +18,29 @@ resource "kubernetes_manifest" "kafka_cluster" {
           volumes:
           - id: 0
             type: persistent-claim
-            size: 100Gi
+            size: 1Gi
             deleteClaim: false
         config:
           offsets.topic.replication.factor: 1
           transaction.state.log.replication.factor: 1
           transaction.state.log.min.isr: 1
-          default.replication.factor: 3
-          min.insync.replicas: 2
+          default.replication.factor: 1
+          min.insync.replicas: 1
       zookeeper:
-        replicas: 3
+        replicas: 1
         storage:
           type: persistent-claim
-          size: 100Gi
+          size: 1Gi
           deleteClaim: false
       entityOperator:
         topicOperator: {}
         userOperator: {}
     EOF
   )
+  depends_on = [
+    kubernetes_namespace.application,
+    helm_release.strimzi
+  ]
 }
 
 resource "kubernetes_manifest" "kafka_topic" {
@@ -53,27 +57,9 @@ resource "kubernetes_manifest" "kafka_topic" {
       replicas: 1
     EOF
   )
-}
-
-resource "kubernetes_manifest" "kafka_internal_svc" {
-  manifest = yamldecode( <<-EOF
-    apiVersion: v1
-    kind: Service
-    metadata:
-      name: kafka-cluster-internal-svc
-      namespace: application
-    spec:
-      selector:
-        strimzi.io/cluster: kafka-default-cluster
-        strimzi.io/kind: Kafka
-      ports:
-        - name: kafka
-          port: 9092
-          protocol: TCP
-          targetPort: 9092
-      type: ClusterIP
-    EOF
-  )
+  depends_on = [
+    kubernetes_manifest.kafka_cluster
+  ]
 }
 
 resource "kubernetes_manifest" "kafka_producer_input_file" {
@@ -108,7 +94,7 @@ resource "kubernetes_manifest" "kafka_producer_perf_test_job" {
               command:
                 - sh
                 - -c
-                - "bin/kafka-console-producer.sh --bootstrap-server kafka-cluster-internal-svc:9092 --topic kafka-default-topic < /inputfile.txt"
+                - "bin/kafka-console-producer.sh --bootstrap-server kafka-default-cluster-kafka-bootstrap:9092 --topic kafka-default-topic < /inputfile.txt"
               volumeMounts:
                 - name: inputfile
                   mountPath: /inputfile.txt
