@@ -60,18 +60,18 @@ resource "kubernetes_manifest" "kafka_internal_svc" {
     apiVersion: v1
     kind: Service
     metadata:
-    name: kafka-cluster-internal-svc
-    namespace: application
+      name: kafka-cluster-internal-svc
+      namespace: application
     spec:
-    selector:
+      selector:
         strimzi.io/cluster: kafka-default-cluster
         strimzi.io/kind: Kafka
-    ports:
+      ports:
         - name: kafka
-        port: 9092
-        protocol: TCP
-        targetPort: 9092
-    type: ClusterIP
+          port: 9092
+          protocol: TCP
+          targetPort: 9092
+      type: ClusterIP
     EOF
   )
 }
