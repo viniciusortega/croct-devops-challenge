@@ -75,3 +75,53 @@ resource "kubernetes_manifest" "kafka_internal_svc" {
     EOF
   )
 }
+
+resource "kubernetes_manifest" "kafka_producer_input_file" {
+  manifest = yamldecode( <<-EOF
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: kafka-producer-input-file
+      namespace: application
+    data:
+      inputfile.txt: |
+        this
+        is a
+        example message
+    EOF
+  )
+}
+
+resource "kubernetes_manifest" "kafka_producer_perf_test_job" {
+  manifest = yamldecode( <<-EOF
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: kafka-producer-job
+      namespace: application
+    spec:
+      template:
+        spec:
+          containers:
+            - name: kafka-producer
+              image: quay.io/strimzi/kafka:0.34.0-kafka-3.4.0
+              command:
+                - sh
+                - -c
+                - "bin/kafka-console-producer.sh --bootstrap-server kafka-cluster-internal-svc:9092 --topic kafka-default-topic < /inputfile.txt"
+              volumeMounts:
+                - name: inputfile
+                  mountPath: /inputfile.txt
+                  subPath: inputfile.txt
+          restartPolicy: Never
+          volumes:
+            - name: inputfile
+              configMap:
+                name: kafka-producer-input-file
+      backoffLimit: 4
+    EOF
+  )
+  depends_on = [
+    kubernetes_manifest.kafka_producer_input_file
+  ]
+}
