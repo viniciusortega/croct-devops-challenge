@@ -148,3 +148,50 @@ resource "kubernetes_manifest" "kafka_producer_perf_test_job" {
     kubernetes_manifest.kafka_broker_config
   ]
 }
+
+resource "kubernetes_manifest" "kafka_console_consumer" {
+  manifest = yamldecode( <<-EOF
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: kafka-console-consumer
+      namespace: application
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: kafka-console-consumer
+      template:
+        metadata:
+          labels:
+            app: kafka-console-consumer
+        spec:
+          initContainers:
+            - name: wait-for-kafka
+              image: quay.io/strimzi/kafka:0.34.0-kafka-3.4.0
+              command:
+                - sh
+                - -c
+                - |
+                  #!/bin/bash
+                  set -e
+                  until bin/kafka-broker-api-versions.sh --bootstrap-server kafka-default-cluster-kafka-bootstrap:9092; do
+                    echo "Waiting for Kafka to be ready..."
+                    sleep 1
+                  done
+              volumeMounts:
+                - name: kafka-config
+                  mountPath: /opt/kafka/config
+          containers:
+            - name: kafka-console-consumer
+              image: quay.io/strimzi/kafka:0.34.0-kafka-3.4.0
+              command: ["bin/kafka-console-consumer.sh"]
+              args: ["--bootstrap-server", "kafka-default-cluster-kafka-bootstrap:9092", "--topic", "kafka-default-topic", "--from-beginning"]
+          restartPolicy: Always
+          volumes:
+            - name: kafka-config
+              configMap:
+                name: kafka-config
+    EOF
+  )
+}
