@@ -1,10 +1,30 @@
+locals {
+  #Base config
+  strimzi_docker_image           = "quay.io/strimzi/kafka:0.34.0-kafka-3.4.0"
+  kafka_namespace                = "application"
+
+  #Kafka K8S resource names
+  kafka_cluster_name             = "kafka-default-cluster"
+  kafka_topic_name               = "kafka-default-topic"
+  kafka_producer_job_name        = "kafka-producer-job"
+  kafka_consumer_deployment_name = "kafka-console-consumer"
+  kafka_producer_input_file_name = "kafka-producer-input-file"
+  kafka_config_name              = "kafka-config"
+
+  #Kafka servers
+  kafka_bootstrap_server         = "${local.kafka_cluster_name}-kafka-bootstrap:9092"
+  kafka_zookeeper_server         = "${local.kafka_cluster_name}-zookeeper:2181"
+}
+
+
+
 resource "kubernetes_manifest" "kafka_cluster" {
   manifest = yamldecode( <<-EOF
     apiVersion: kafka.strimzi.io/v1beta2
     kind: Kafka
     metadata:
-      name: kafka-default-cluster
-      namespace: application
+      name: ${local.kafka_cluster_name}
+      namespace: ${local.kafka_namespace}
     spec:
       kafka:
         replicas: 1
@@ -48,12 +68,12 @@ resource "kubernetes_manifest" "kafka_topic" {
     apiVersion: kafka.strimzi.io/v1beta2
     kind: KafkaTopic
     metadata:
-      name: kafka-default-topic
-      namespace: application
+      name: ${local.kafka_topic_name}
+      namespace: ${local.kafka_namespace}
       labels:
-        strimzi.io/cluster: "kafka-default-cluster"
+        strimzi.io/cluster: "${local.kafka_cluster_name}"
     spec:
-      partitions: 3
+      partitions: 1
       replicas: 1
     EOF
   )
@@ -67,8 +87,8 @@ resource "kubernetes_manifest" "kafka_producer_input_file" {
     apiVersion: v1
     kind: ConfigMap
     metadata:
-      name: kafka-producer-input-file
-      namespace: application
+      name: ${local.kafka_producer_input_file_name}
+      namespace: ${local.kafka_namespace}
     data:
       inputfile.txt: |
         this
@@ -83,14 +103,14 @@ resource "kubernetes_manifest" "kafka_broker_config" {
     apiVersion: v1
     kind: ConfigMap
     metadata:
-      name: kafka-config
-      namespace: application
+      name: ${local.kafka_config_name}
+      namespace: ${local.kafka_namespace}
     data:
       server.properties: |-
         broker.id=0
-        listeners=PLAINTEXT://kafka-default-cluster-kafka:9092
+        listeners=PLAINTEXT://${local.kafka_bootstrap_server}
         log.dirs=/var/lib/kafka/data
-        zookeeper.connect=kafka-default-cluster-zookeeper:2181
+        zookeeper.connect=${local.kafka_zookeeper_server}
     EOF
   )
 }
@@ -100,46 +120,46 @@ resource "kubernetes_manifest" "kafka_producer_perf_test_job" {
     apiVersion: batch/v1
     kind: Job
     metadata:
-      name: kafka-producer-job
-      namespace: application
+      name: ${local.kafka_producer_job_name}
+      namespace: ${local.kafka_namespace}
     spec:
       template:
         spec:
           initContainers:
             - name: wait-for-kafka
-              image: quay.io/strimzi/kafka:0.34.0-kafka-3.4.0
+              image: ${local.strimzi_docker_image}
               command:
                 - sh
                 - -c
                 - |
                   #!/bin/bash
                   set -e
-                  until bin/kafka-broker-api-versions.sh --bootstrap-server kafka-default-cluster-kafka-bootstrap:9092; do
+                  until bin/kafka-broker-api-versions.sh --bootstrap-server ${local.kafka_bootstrap_server}; do
                     echo "Waiting for Kafka to be ready..."
                     sleep 1
                   done
               volumeMounts:
-                - name: kafka-config
+                - name: ${local.kafka_config_name}
                   mountPath: /opt/kafka/config
           containers:
             - name: kafka-producer
-              image: quay.io/strimzi/kafka:0.34.0-kafka-3.4.0
+              image: ${local.strimzi_docker_image}
               command:
                 - sh
                 - -c
-                - "bin/kafka-console-producer.sh --bootstrap-server kafka-default-cluster-kafka-bootstrap:9092 --topic kafka-default-topic < /inputfile.txt"
+                - "bin/kafka-console-producer.sh --bootstrap-server ${local.kafka_bootstrap_server} --topic ${local.kafka_topic_name} < /inputfile.txt"
               volumeMounts:
-                - name: inputfile
+                - name: ${local.kafka_producer_input_file_name}
                   mountPath: /inputfile.txt
                   subPath: inputfile.txt
           restartPolicy: Never
           volumes:
-            - name: inputfile
+            - name: ${local.kafka_producer_input_file_name}
               configMap:
-                name: kafka-producer-input-file
-            - name: kafka-config
+                name: ${local.kafka_producer_input_file_name}
+            - name: ${local.kafka_config_name}
               configMap:
-                name: kafka-config
+                name: ${local.kafka_config_name}
       backoffLimit: 4
     EOF
   )
@@ -154,44 +174,44 @@ resource "kubernetes_manifest" "kafka_console_consumer" {
     apiVersion: apps/v1
     kind: Deployment
     metadata:
-      name: kafka-console-consumer
-      namespace: application
+      name: ${local.kafka_consumer_deployment_name}
+      namespace: ${local.kafka_namespace}
     spec:
       replicas: 1
       selector:
         matchLabels:
-          app: kafka-console-consumer
+          app: ${local.kafka_consumer_deployment_name}
       template:
         metadata:
           labels:
-            app: kafka-console-consumer
+            app: ${local.kafka_consumer_deployment_name}
         spec:
           initContainers:
             - name: wait-for-kafka
-              image: quay.io/strimzi/kafka:0.34.0-kafka-3.4.0
+              image: ${local.strimzi_docker_image}
               command:
                 - sh
                 - -c
                 - |
                   #!/bin/bash
                   set -e
-                  until bin/kafka-broker-api-versions.sh --bootstrap-server kafka-default-cluster-kafka-bootstrap:9092; do
+                  until bin/kafka-broker-api-versions.sh --bootstrap-server ${local.kafka_bootstrap_server}; do
                     echo "Waiting for Kafka to be ready..."
                     sleep 1
                   done
               volumeMounts:
-                - name: kafka-config
+                - name: ${local.kafka_config_name}
                   mountPath: /opt/kafka/config
           containers:
-            - name: kafka-console-consumer
-              image: quay.io/strimzi/kafka:0.34.0-kafka-3.4.0
+            - name: ${local.kafka_consumer_deployment_name}
+              image: ${local.strimzi_docker_image}
               command: ["bin/kafka-console-consumer.sh"]
-              args: ["--bootstrap-server", "kafka-default-cluster-kafka-bootstrap:9092", "--topic", "kafka-default-topic", "--from-beginning"]
+              args: ["--bootstrap-server", "${local.kafka_bootstrap_server}", "--topic", "${local.kafka_topic_name}", "--from-beginning"]
           restartPolicy: Always
           volumes:
-            - name: kafka-config
+            - name: ${local.kafka_config_name}
               configMap:
-                name: kafka-config
+                name: ${local.kafka_config_name}
     EOF
   )
 }
