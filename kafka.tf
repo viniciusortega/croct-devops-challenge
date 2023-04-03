@@ -78,6 +78,23 @@ resource "kubernetes_manifest" "kafka_producer_input_file" {
   )
 }
 
+resource "kubernetes_manifest" "kafka_broker_config" {
+  manifest = yamldecode( <<-EOF
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: kafka-config
+      namespace: application
+    data:
+      server.properties: |-
+        broker.id=0
+        listeners=PLAINTEXT://kafka-default-cluster-kafka:9092
+        log.dirs=/var/lib/kafka/data
+        zookeeper.connect=kafka-default-cluster-zookeeper:2181
+    EOF
+  )
+}
+
 resource "kubernetes_manifest" "kafka_producer_perf_test_job" {
   manifest = yamldecode( <<-EOF
     apiVersion: batch/v1
@@ -88,6 +105,22 @@ resource "kubernetes_manifest" "kafka_producer_perf_test_job" {
     spec:
       template:
         spec:
+          initContainers:
+            - name: wait-for-kafka
+              image: quay.io/strimzi/kafka:0.34.0-kafka-3.4.0
+              command:
+                - sh
+                - -c
+                - |
+                  #!/bin/bash
+                  set -e
+                  until bin/kafka-broker-api-versions.sh --bootstrap-server kafka-default-cluster-kafka-bootstrap:9092; do
+                    echo "Waiting for Kafka to be ready..."
+                    sleep 1
+                  done
+              volumeMounts:
+                - name: kafka-config
+                  mountPath: /opt/kafka/config
           containers:
             - name: kafka-producer
               image: quay.io/strimzi/kafka:0.34.0-kafka-3.4.0
@@ -104,10 +137,14 @@ resource "kubernetes_manifest" "kafka_producer_perf_test_job" {
             - name: inputfile
               configMap:
                 name: kafka-producer-input-file
+            - name: kafka-config
+              configMap:
+                name: kafka-config
       backoffLimit: 4
     EOF
   )
   depends_on = [
-    kubernetes_manifest.kafka_producer_input_file
+    kubernetes_manifest.kafka_producer_input_file,
+    kubernetes_manifest.kafka_broker_config
   ]
 }
