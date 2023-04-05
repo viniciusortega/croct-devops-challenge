@@ -15,7 +15,7 @@ locals {
   kafka_bootstrap_server         = "${local.kafka_cluster_name}-kafka-bootstrap:9092"
   kafka_zookeeper_server         = "${local.kafka_cluster_name}-zookeeper:2181"
   
-  enable_recreate_job_to_update_configmap  = true
+  enable_recreate_job_to_update_configmap  = false
 }
 
 
