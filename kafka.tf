@@ -14,6 +14,8 @@ locals {
   #Kafka servers
   kafka_bootstrap_server         = "${local.kafka_cluster_name}-kafka-bootstrap:9092"
   kafka_zookeeper_server         = "${local.kafka_cluster_name}-zookeeper:2181"
+  
+  enable_recreate_job_to_update_configmap  = true
 }
 
 
@@ -96,6 +98,29 @@ resource "kubernetes_manifest" "kafka_producer_input_file" {
         example message
     EOF
   )
+}
+
+resource "null_resource" "check_configmap_update" {
+  count = local.enable_recreate_job_to_update_configmap ? 1 : 0
+  triggers = {
+    shoot_id = kubernetes_manifest.kafka_producer_input_file.manifest.data["inputfile.txt"]
+  }
+
+  provisioner "local-exec" {
+    command = <<EOT
+      # Taint resource
+      echo "Tainting resource: kubernetes_manifest.kafka_producer_perf_test_job"
+      terraform taint -lock=false kubernetes_manifest.kafka_producer_perf_test_job > /dev/null 2>&1
+      
+      # Execute terraform apply
+      echo "Applying changes..."
+      terraform apply -lock=false -target kubernetes_manifest.kafka_producer_perf_test_job -auto-approve > /dev/null 2>&1
+    EOT
+  }
+  depends_on = [
+    kubernetes_manifest.kafka_producer_input_file,
+    kubernetes_manifest.kafka_producer_perf_test_job
+  ]
 }
 
 resource "kubernetes_manifest" "kafka_broker_config" {

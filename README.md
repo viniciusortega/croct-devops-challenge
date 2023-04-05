@@ -47,6 +47,28 @@ terraform apply
 
 This will create a Strimzi Operator, Kafka cluster, Kafka topic, producer job, and the consumer deployment along with their dependencies. The producer job uses the Kafka producer to publish messages to a specified topic.
 
+5. **This step is optional** -> If you want to modify the configMap input file, you must enable(which is **mandatorily** after the first apply) the following local var `enable_recreate_job_to_update_configmap` and then change the input(you can find `locals` and the `kubernetes_manifest.kafka_producer_input_file` Configmap in [kafka.tf](./kafka.tf)):
+
+```go
+...
+19: enable_recreate_job_to_update_configmap = true
+```
+
+```go
+...
+94:   data:
+95:     inputfile.txt: |
+96:       this is 
+97:       another
+98:       text
+...
+```
+
+And after that, you can apply:
+
+```bash
+terraform apply
+```
 
 ## Configuration
 
@@ -64,6 +86,7 @@ The following locals can be configured in the `kafka.tf` file:
 | `kafka_config_name` | The name of the Kafka ConfigMap | `"kafka-config"` |
 | `kafka_bootstrap_server` | The Kafka bootstrap server URL | `"${local.kafka_cluster_name}-kafka-bootstrap:9092"` |
 | `kafka_zookeeper_server` | The Kafka ZooKeeper server URL | `"${local.kafka_cluster_name}-zookeeper:2181"` |
+| `enable_recreate_job_to_update_configmap` | Enable null_resource that recreate producer job | `false` |
 
 ## Contributing
 
