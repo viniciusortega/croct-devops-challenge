@@ -54,14 +54,14 @@ The following locals can be configured in the `kafka.tf` file:
 
 | Name | Description | Default |
 |------|-------------|---------|
-| `strimzi_docker_image` | The Strimzi Kafka Docker image to use | `quay.io/strimzi/kafka:0.24.0-kafka-2.8.0` |
-| `kafka_namespace` | The namespace in which to deploy Kafka | `"kafka"` |
-| `kafka_cluster_name` | The name of the Kafka cluster | `"my-kafka-cluster"` |
-| `kafka_topic_name` | The name of the Kafka topic | `"my-kafka-topic"` |
-| `kafka_producer_job_name` | The name of the Kafka producer job | `"my-kafka-producer-job"` |
-| `kafka_consumer_deployment_name` | The name of the Kafka consumer deployment | `"my-kafka-consumer-deployment"` |
-| `kafka_producer_input_file_name` | The name of the file containing the Kafka producer input | `"producer-input-file.txt"` |
-| `kafka_config_name` | The name of the Kafka ConfigMap | `"my-kafka-config"` |
+| `strimzi_docker_image` | The Strimzi Kafka Docker image to use | `quay.io/strimzi/kafka:0.34.0-kafka-3.4.0` |
+| `kafka_namespace` | The namespace in which to deploy Kafka | `"application"` |
+| `kafka_cluster_name` | The name of the Kafka cluster | `"kafka-default-cluster"` |
+| `kafka_topic_name` | The name of the Kafka topic | `"kafka-default-topic"` |
+| `kafka_producer_job_name` | The name of the Kafka producer job | `"kafka-producer-job"` |
+| `kafka_consumer_deployment_name` | The name of the Kafka consumer deployment | `"kafka-console-consumer"` |
+| `kafka_producer_input_file_name` | The name of the file containing the Kafka producer input | `"kafka-producer-input-file"` |
+| `kafka_config_name` | The name of the Kafka ConfigMap | `"kafka-config"` |
 | `kafka_bootstrap_server` | The Kafka bootstrap server URL | `"${local.kafka_cluster_name}-kafka-bootstrap:9092"` |
 | `kafka_zookeeper_server` | The Kafka ZooKeeper server URL | `"${local.kafka_cluster_name}-zookeeper:2181"` |
 
