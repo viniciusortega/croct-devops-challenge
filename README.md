@@ -12,7 +12,7 @@ The task is create a Terraform module to deploy a Kafka cluster, a consumer and 
 
 To run this project, you will first need to have a Minikube K8S Cluster running. To install and run it, you can follow the [Minikube Tutorial](https://minikube.sigs.k8s.io/docs/start/).
 
-    :warning: To be able to use Minikube, [Docker](https://docs.docker.com/engine/install/ubuntu/) must be properly installed.
+:warning: To be able to use Minikube, [Docker](https://docs.docker.com/engine/install/ubuntu/) must be properly installed.
 
 You must also install Terraform. Simply follow the official step-by-step guide from [Hashicorp Terraform](https://developer.hashicorp.com/terraform/downloads). Remember that the version used in this challenge was v1.4.4, and previous or later versions may impact the project's functionality.
 
